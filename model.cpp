@@ -65,10 +65,10 @@ int size_out (int size_in, int scale) {
     cout << "size= " << size_in << endl;
     cout << "out= " << floor (1 + ((size_in - 1) * (scale + 1)) / 12);
     #endif 
-    return floor (1 + ((size_in - 1) * (scale + 1)) / 12);
+    return (int)floor (1 + ((size_in - 1) * (scale + 1)) / 12);
 }
 
-vector<unsigned char> hdscale (unsigned char line[], short hscale, int hsize) {
+vector<unsigned char> hdscale (vector<unsigned char> line, short hscale, int hsize) {
     int InPixCnt = 0;
     unsigned char CurPix = 0;
     unsigned char PrevPix = 0;
@@ -88,13 +88,13 @@ vector<unsigned char> hdscale (unsigned char line[], short hscale, int hsize) {
         if (hcnt < 2) {
             continue;
         }else if (hcnt == 2){
-            Output[hcnt - 2] = CurPix;
+            Output.push_back(CurPix);
         }else if (skip_flag) {
             continue;
         }else if (InPixCnt == 0) {
-            Output[hcnt - 2] = CurPix;
+            Output.push_back(CurPix);
         }else {
-            Output[hcnt - 2] = Output_a;
+            Output.push_back(Output_a);
         }
         PrevPix = CurPix;
     }
