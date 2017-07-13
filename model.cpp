@@ -101,15 +101,18 @@ vector<unsigned char> hdscale (vector<unsigned char> line, short hscale, int hsi
     return Output;
 }
 
-vector<char> vdscale ( vector<char> image, short vscale, int hsize, int vsize) {
+vector<unsigned char> vdscale ( vector< vector<unsigned char> > image, short vscale, int hsize, int vsize) {
     int InLineCnt = 0;
     int last_line_flag = 0;
     int vcnt_out = 0;
-    int vsize_out_tmp;
+    int vsize_out_tmp = 0;
+    int vsize_out = 0;
     bool skip_flag = 0;
-    unsigned char CurPix = 0;
-    unsigned char PrevPix = 0;
-    //unsigned char Output_a = 0;
+    bool out_en = 0;
+    vector <unsigned char> CurLine;
+    vector <unsigned char> PrevLine;
+    vector <unsigned char> OutLine_a;
+    vector <unsigned char> OutLine;
 
     for (int vcnt_in = 0; vcnt_in < vsize; vcnt_in++) {
         if (vcnt_in == 0) continue;
@@ -117,14 +120,36 @@ vector<char> vdscale ( vector<char> image, short vscale, int hsize, int vsize) {
 
         vsize_out_tmp = size_out (vsize,vscale); 
 
-        if (InLineCnt < 12) skip_flag = 1;
+        if (InLineCnt < 12) skip_flag = 1; //skip
         else {
             skip_flag = 0;
             InLineCnt -= 12;
             if (vsize_out_tmp <= vcnt_out + 1) last_line_flag = 1;
         }
         for (int hcnt = 0; hcnt < hsize; hcnt++) {
-
+            CurLine = image[vcnt_in];
+            //interpolated data
+            //TODO:loop to perform addition to all (-)CurLine[x] & PrevLine[x]
+            //TODO: overload interpolate to accept Line
+            if (vcnt_in == 0) {
+                OutLine = CurLine;
+                vsize_out = vcnt_out + 1;
+                out_en = 1;
+            } else if (skip_flag == 0) {
+                OutLine = OutLine_a;
+                vsize_out = vsize_out_tmp;
+                out_en = 1;
+            } else if (last_line_flag == 0 && vsize <= vcnt_in + 1) {
+                OutLine = CurLine;
+                vsize_out = vcnt_out + 1;
+                out_en = 1;
+            } else {
+                out_en = 0;
+            } 
+        }
+        vcnt_in++;
+        if (out_en) {
+            vcnt_out++;
         }
     }
 }
