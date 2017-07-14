@@ -128,9 +128,9 @@ vector<unsigned char> vdscale ( vector< vector<unsigned char> > image, short vsc
         }
         for (int hcnt = 0; hcnt < hsize; hcnt++) {
             CurLine = image[vcnt_in];
+            PrevLine = image[vcnt_in + 1];
             //interpolated data
-            //TODO:loop to perform addition to all (-)CurLine[x] & PrevLine[x]
-            //TODO: overload interpolate to accept Line
+            OutLine_a[hcnt] = interpolate(CurLine[hcnt],PrevLine[hcnt],InLineCnt,vscale);
             if (vcnt_in == 0) {
                 OutLine = CurLine;
                 vsize_out = vcnt_out + 1;
