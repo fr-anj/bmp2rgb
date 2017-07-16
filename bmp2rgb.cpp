@@ -1,174 +1,148 @@
 #include <iostream>
-#include <cmath>
-//#include <vector>
-using namespace std;
-unsigned char hfil (short hfilsel, unsigned char win[]) {
-    unsigned int temp = 0;
-    //coef
-    unsigned int hcoef [][5] = {
-        {0,0,8,0,0},
-        {0,1,6,1,0},
-        {0,2,4,2,0},
-        {1,2,2,2,1}
-    };
-    //filter
-    #ifdef DEBUG
-    cout << "(" << hfilsel << ") ";
-    #endif
-    for (int n = 0; n < 5; n++) {
-        temp += (hcoef[hfilsel][n] * (unsigned int)win[n]);
-        #ifdef DEBUG
-        cout << (hcoef[hfilsel][n] * (unsigned int)win[n]) << " ";
-        #endif
+#include <unistd.h>
+#include <fstream>
+#include <string>
+
+using std::cout;
+using std::endl;
+using std::ofstream;
+using std::ifstream;
+using std::string;
+
+#pragma pack(1)
+
+typedef int LONG;
+typedef unsigned short WORD;
+typedef unsigned int DWORD;
+
+typedef struct tagBITMAPFILEHEADER {
+    WORD bfType;
+    DWORD bfSize;
+    WORD bfReserved1;
+    WORD bfReserved2;
+    DWORD bfOffBits;
+} BITMAPFILEHEADER, *PBITMAPFILEHEADER;
+
+typedef struct tagBITMAPINFOHEADER {
+    DWORD biSize;
+    LONG biWidth;
+    LONG biHeight;
+    WORD biPlanes;
+    WORD biBitCount;
+    DWORD biCompression;
+    DWORD biSizeImage;
+    LONG biXPelsPerMeter;
+    LONG biYPelsPerMeter;
+    DWORD biClrUsed;
+    DWORD biClrImportant;
+} BITMAPINFOHEADER, *PBITMAPINFOHEADER;
+
+int main (int argc,char* argv[]) {
+    unsigned char* datBuff[2] = {NULL,NULL};//Header buffers
+    unsigned char* pixels = NULL;
+
+    //unsigned char* red = NULL;
+    //unsigned char* green = NULL;
+    //unsigned char* blue = NULL;
+
+    int padding = 0;
+
+    PBITMAPFILEHEADER bmpheader = NULL; //header
+    PBITMAPINFOHEADER bmpInfo = NULL; //info
+
+    const char* location = argv[1]; 
+    string strlocation(location);
+    string fr, fg, fb;
+    strlocation.erase(strlocation.length()-4,4);
+    cout << "new location: " << strlocation << endl;
+    fr = strlocation + "_r.dat";
+    fg = strlocation + "_g.dat";
+    fb = strlocation + "_b.dat";
+
+    //open file
+    ifstream file(location, std::ios::binary);
+    if(!file){
+        cout << "Failure to open bitmap file.\n";
+        return 1;
     }
-    #ifdef DEBUG
-    cout << "= " << temp << " ";
-    #endif
-    temp = temp >> 3;
-    return (unsigned char)temp;
-}
 
-unsigned char vfil (short vfilsel, unsigned char win[]) {
-    unsigned int temp = 0;
-    //coef
-    unsigned int vcoef [][3] = {
-        {0,8,0},
-        {1,6,1},
-        {2,4,2}
-    };
-    //filter
-    #ifdef DEBUG
-    cout << "(" << vfilsel << ") ";
-    #endif
-    for (int n = 0; n < 3; n++) {
-        temp += (vcoef[vfilsel][n] * (unsigned int)win[n]);
-        #ifdef DEBUG
-        cout << (vcoef[vfilsel][n] * (unsigned int)win[n]) << " ";
-        #endif
+    datBuff[0] = new unsigned char[sizeof(BITMAPFILEHEADER)];
+    datBuff[1] = new unsigned char[sizeof(BITMAPINFOHEADER)];
+
+    file.read((char*)datBuff[0], sizeof(BITMAPFILEHEADER));
+    file.read((char*)datBuff[1], sizeof(BITMAPINFOHEADER));
+
+    bmpheader = (PBITMAPFILEHEADER) datBuff[0];
+    bmpInfo = (PBITMAPINFOHEADER) datBuff[1];
+
+    //check if file is BMP
+    if(bmpheader->bfType != 0x4D42) {
+        cout << "File \"" << location << "\" is not a bitmap file\n";
+        return 2;
     }
-    #ifdef DEBUG
-    cout << "= " << temp << " ";
-    #endif
-    temp = temp >> 3;
-    return (unsigned char)temp;
-}
 
-unsigned char interpolate (unsigned char cur, unsigned char prev, int cnt, int scale) {
-    unsigned int temp = 0;
-    temp = (prev - cur) * cnt/(scale + 1);
-    return (unsigned char)temp;
-}
+    pixels = new unsigned char[bmpInfo->biSizeImage];
 
-int size_out (int size_in, int scale) {
-    #ifdef DEBUG
-    cout << "size= " << size_in << endl;
-    cout << "out= " << floor (1 + ((size_in - 1) * (scale + 1)) / 12);
-    #endif 
-    return floor (1 + ((size_in - 1) * (scale + 1)) / 12);
-}
+    file.seekg(bmpheader->bfOffBits);
+    file.read((char*)pixels, bmpInfo->biSizeImage);
 
-unsigned char * hdscale (unsigned char line[], short hscale, int hsize) {
-    int InPixCnt = 0;
-    unsigned char CurPix = 0;
-    unsigned char PrevPix = 0;
-    unsigned char Output_a = 0;
-    unsigned char Output[hsize] = 0;
-    bool skip_flag = 0;
-    for (int hcnt = 0; hcnt <= hsize +2; hcnt++) {
-        CurPix = line[hcnt];
-        if (hcnt > 2) InPixCnt += hscale + 1; //calc InPixCnt
-        if (InPixCnt < 12) skip_flag = 1; //skip
-        else { 
-            skip_flag = 0;
-            InPixCnt -= 12;
+    //red = new unsigned char[bmpInfo->biWidth];
+    //green = new unsigned char[bmpInfo->biWidth];
+    //blue = new unsigned char[bmpInfo->biWidth];
+
+    padding = bmpInfo->biWidth % 4;
+
+    int ctr = 0;
+    //int newctr = 0;
+    cout << "size: " << bmpInfo->biSizeImage << endl;
+    cout << "width: " << bmpInfo->biWidth << endl;
+    cout << "height: " << bmpInfo->biHeight << endl;
+    cout << "padding: " << padding << endl;
+
+    //--------------------------------------------RED
+    const char* cfr = fr.c_str();
+    ofstream red(cfr);
+    if (!red) {
+        cout << "Failed to create file " << fr << endl;
+        return 1;
+    }
+    cout << "creating file " << fr << endl;
+
+    //--------------------------------------------GREEN
+    const char* cfg = fg.c_str();
+    ofstream green(cfg);
+    if (!green) {
+        cout << "Failed to create file " << fg << endl;
+        return 1;
+    }
+    cout << "creating file " << fg << endl;
+
+    //--------------------------------------------BLUE
+    const char* cfb = fb.c_str();
+    ofstream blue(cfb);
+    if (!blue) {
+        cout << "Failed to create file " << fb << endl;
+        return 1;
+    }
+    cout << "creating file " << fb << endl;
+
+    for (unsigned long i = 0; i < bmpInfo->biSizeImage; i+= 3) {
+        //cout << ctr << " ";
+        if (ctr == bmpInfo->biWidth) {
+            i+= padding;
+            //cout << endl;
+            ctr = 0;
         }
-        //interpolated data
-        Output_a = interpolate(CurPix,PrevPix,InPixCnt,hscale);
-        if (hcnt < 2) {
-            continue;
-        }else if (hcnt == 2){
-            Output[hcnt - 2] = CurPix;
-        }else if (skip_flag) {
-            continue;
-        }else if (InPixCnt == 0) {
-            Output[hcnt - 2] = CurPix;
-        }else {
-            Output[hcnt - 2] = Output_a;
-        }
-        PrevPix = CurPix;
+        ctr++;
+        red << std::showbase << std::hex << (unsigned int)pixels[i+2] << endl;
+        green << std::showbase << std::hex << (unsigned int)pixels[i+1] << endl;
+        blue << std::showbase << std::hex << (unsigned int)pixels[i] << endl;
     }
-    return Output;
-}
 
-unsigned char [] vdscale (unsigned char img[], short vscale, int hsize, int vsize) {
-    int InLineCnt = 0;
-    int last_line_flag = 0;
-    int vcnt_out = 0;
-    int vsize_out_tmp;
-    bool skip_flag = 0;
-    unsigned char CurPix = 0;
-    unsigned char PrevPix = 0;
-    unsigned char Output_a = 0;
-
-    for (int vcnt_in = 0; vcnt_in < vsize; vcnt_in++) {
-        if (vcnt_in == 0) continue;
-        else InLineCnt += vsize + 1;
-
-        vsize_out_tmp = size_out (vsize,vscale); 
-
-        if (InLineCnt < 12) skip_flag = 1;
-        else {
-            skip_flag = 0;
-            InLineCnt -= 12;
-            if (vsize_out_tmp <= vcnt_out + 1) last_line_flag = 1;
-        }
-        for (int hcnt = 0; hcnt < hsize; hcnt++) {
-        }
-    }
-}
-
-//display funcs
-#ifdef DEBUG
-void disp_filt (const short coeflim, unsigned char win[]) {
-    int val = 0;
-    for (int n = 0; n < coeflim; n++) {
-        switch (coeflim) {
-            case 3:
-                val = (int)vfil (n,win);
-                cout << "-> " << val << endl;
-                break;
-            case 4:
-                val = (int)hfil (n,win);
-                cout << "-> " << val << endl;
-                break;
-            default: 
-                cout << "no such thing exists.." << endl;
-        }
-    }
-}
-
-void disp_win (const short winlim, unsigned char win[]) {
-    if (winlim==5||winlim==3) {
-        for (int n = 0; n < winlim; n++) 
-            cout << (int)win[n] << " ";
-        cout << endl;
-    } else {
-        cout << "no such thing exists.." << endl;
-    }
-}
-#endif
-
-int main (int arg,char **ops) {
-    #ifdef FILTEST
-    //test
-    unsigned char win5[] = {0,0,255,255,255};
-    unsigned char win3[] = {0,255,255};
-    cout << "hfil example:" << endl;
-    disp_win (5,win5);
-    disp_filt (4,win5);
-    cout << "vfil example:" << endl;
-    disp_win (3,win3);
-    disp_filt (3,win3);
-    #endif
+    //close files
+    red.close();
+    green.close();
+    blue.close();
     return 1;
 }
+
